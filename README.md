@@ -1,6 +1,8 @@
 # Transformer 英中翻译学习项目
 
-从基础模块开始，使用 PyTorch 手写 Transformer，理解注意力机制及 Encoder–Decoder 的工作方式。项目面向英中翻译学习，目前已实现单层编码器和解码器 block，并在 Notebook 中探索英中平行语料。
+本项目的目标是使用 PyTorch 从零搭建并训练一个 **英文翻译成中文（English → Chinese）** 的 Transformer 模型。从注意力、前馈网络和归一化等基础模块开始，逐步完成 Encoder–Decoder、数据处理、训练与推理，理解完整的机器翻译流程。
+
+目前已实现单层编码器和解码器 block，并在 Notebook 中探索英中平行语料。后续计划自行组装完整模型并从头训练，输入英文句子，输出中文翻译。
 
 当前尚未包含完整的翻译模型、训练流程和文本生成接口。
 
@@ -91,19 +93,46 @@ print(output.shape)  # torch.Size([2, 5, 32])
 
 本项目约定 `True` 为允许关注，`False` 为屏蔽。每个 query 至少应保留一个可关注位置，整行屏蔽会使 softmax 产生 NaN。
 
-## 数据探索
+## 计划使用的数据集
 
-Notebook 使用 Hugging Face Datasets 加载 OPUS-100 的 `en-zh` 配置：
+训练数据暂定使用 Hugging Face 上的 `Helsinki-NLP/opus-100`，选择 `en-zh` 配置。Notebook 已包含以下加载与查看代码：
 
 ```python
 from datasets import load_dataset
 
-dataset = load_dataset("Helsinki-NLP/opus-100", "en-zh")
+dataset = load_dataset(
+    "Helsinki-NLP/opus-100",
+    "en-zh"
+)
+
 print(dataset)
 print(dataset["train"][:10])
 ```
 
-目前数据加载与 block 实现尚未连接成训练流程。
+翻译方向固定为 **英文作为源文本，中文作为目标文本**。加载后先检查数据划分、字段、样本内容和句长分布，再完成清洗、分词、编码和批次构造。目前数据加载与 block 实现尚未连接成训练流程。
+
+## 后续实现路线
+
+以下内容为计划，尚未全部实现：
+
+1. **准备数据**：检查 OPUS-100 英中样本，处理空文本和过长句子；保留训练、验证和测试划分，先用少量训练样本打通流程。
+2. **构建分词与词表**：确定英文和中文的分词方案，仅使用训练集拟合分词器或构建词表；定义 `<pad>`、`<bos>`、`<eos>`，以及分词方案需要时的 `<unk>`，完成文本与 token ID 的转换。
+3. **组装完整 Transformer**：补充源语言和目标语言的词嵌入、位置编码、多层 Encoder/Decoder 堆叠，以及映射到中文目标词表的输出投影。
+4. **构造训练批次与 mask**：实现变长序列 padding、源序列 padding mask，以及目标序列的因果 mask 和 padding mask，并接入对应注意力层。
+5. **实现训练循环**：采用 teacher forcing，将中文目标序列右移作为 Decoder 输入，预测下一个 token；使用忽略 padding 的交叉熵损失，完成反向传播、优化器更新和验证。
+6. **检查训练效果**：先确认模型能够拟合一个小训练子集，再逐步扩大数据和模型规模；记录训练与验证损失，保存模型、分词器、词表及训练配置。
+7. **实现翻译推理**：编码英文输入，从 `<bos>` 开始逐 token 生成中文，遇到 `<eos>` 或达到长度上限时停止；先实现贪心解码，再按需加入 beam search。
+8. **评估翻译质量**：在验证集上调整配置，最终在独立测试集上评估；结合中文分词约定计算 BLEU 等指标，并人工查看翻译样例。
+
+训练时的目标序列对齐示意（以字为 token 举例，实际边界由分词器决定）：
+
+```text
+英文输入：       I love you.
+Decoder 输入：   <bos> 我 爱 你 。
+预测标签：       我 爱 你 。 <eos>
+```
+
+最终希望提供一个可保存、可加载的模型，以及接收英文句子并返回中文翻译的推理入口。
 
 ## 当前限制与后续工作
 
