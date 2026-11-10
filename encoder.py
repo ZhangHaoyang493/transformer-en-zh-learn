@@ -14,8 +14,8 @@ class EncoderTransformerBlock(nn.Module):
         self.layernorm = LayerNormLayer(dim)
         self.layernorm2 = LayerNormLayer(dim)
 
-    def forward(self, x):
-        x1 = self.multiHeadAttn(x, x, x)
+    def forward(self, x, mask):
+        x1 = self.multiHeadAttn(x, x, x, mask)
         x1 = self.layernorm(x + x1)
         x2 = self.feedforward(x1)
         x2 = self.layernorm2(x2 + x1)
