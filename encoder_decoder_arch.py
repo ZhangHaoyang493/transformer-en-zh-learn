@@ -28,5 +28,13 @@ class EncoderDecoderArch(nn.Module):
         x = self.posEnc(x)
         for m in self.encoderList:
             x = m(x)
+        return x
 
+    def decode(self, x, x_enc, mask):
+        x = self.posEnc(x)
+        for m in self.decoderList:
+            x = m(x, x_enc, mask)
+        return x
+
+    def forward(self, x):
     

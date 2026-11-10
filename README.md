@@ -16,7 +16,7 @@
 | `encoder.py` | 自注意力与前馈网络组成的编码器 block |
 | `decoder.py` | 因果自注意力、交叉注意力与前馈网络组成的解码器 block |
 | `embedding.py` | 词嵌入 `EmbeddingLayer` 和正弦位置编码 `PositionEncoding` 的初稿，尚需修正 |
-| `encoder_decoder_arch.py` | `EncoderDecoderArch` 架构初稿，包含编码器堆叠、解码器列表和位置编码接入，尚未完成前向流程 |
+| `encoder_decoder_arch.py` | `EncoderDecoderArch` 架构初稿，包含编码器堆叠、编码/解码方法和位置编码接入，完整前向流程仍待完成 |
 | `LLMlearn.ipynb` | 加载 OPUS-100 英中数据及 CUDA 初步实验 |
 
 ## 当前实现进度
@@ -25,7 +25,7 @@
 | --- | --- |
 | 注意力、前馈网络及单层 Encoder/Decoder block | 已编写，仍需补充运行验证和 mask 测试 |
 | 词嵌入与位置编码 | 已有初稿，初始化及位置编码计算需修正 |
-| 多层 Encoder–Decoder 架构 | 已有初稿，Decoder 堆叠及完整前向流程待补齐 |
+| 多层 Encoder–Decoder 架构 | 已有初稿，`encode()` 和 `decode()` 已编写；Decoder 堆叠及完整前向流程待补齐 |
 | 英中数据探索 | Notebook 已包含 OPUS-100 加载代码 |
 | 分词、训练、翻译推理与评估 | 待实现 |
 
@@ -152,7 +152,7 @@ Decoder 输入：   <bos> 我 爱 你 。
 
 - **新增模块的初始化需修正**：`EmbeddingLayer`、`PositionEncoding` 和 `EncoderDecoderArch` 当前使用的 `super(类名).__init__()` 未正确初始化模块基类，应改为 `super().__init__()`。
 - **位置编码尚未完成**：当前 `div_term` 的索引范围和幂运算不符合注释中的公式；还需按实际序列长度截取位置编码，处理奇数特征维度，并通过 `register_buffer` 管理位置编码，使其随模型迁移设备和保存。
-- **架构前向流程尚未完成**：`encoderList` 已按 `enc_n` 构建，但 `decoderList` 目前只有一层，未使用 `dec_n`；`encode()` 缺少返回值，尚未实现 `decode()` 和 `forward()`，也未接入源、目标词嵌入。输出层当前为 `dim → dim`，后续应映射到目标词表大小。
+- **架构前向流程尚未完成**：`encode()` 已返回编码结果，`decode(x, x_enc, mask)` 已加入位置编码和 Decoder block 调用；但 `decoderList` 目前只有一层，未使用 `dec_n`，`forward()` 尚未实现，也未接入源、目标词嵌入。输出层当前为 `dim → dim`，后续应映射到目标词表大小。
 - **LayerNorm 尚需与标准公式对齐**：当前偏置初始化为 `1`，使用默认样本标准差，并在标准差外加 `eps`。后续可改为零偏置、总体方差，以及 `sqrt(var + eps)`；特征维度为 `1` 时，当前标准差计算会产生 NaN。
 - **Padding mask 接口尚未补齐**：底层多头注意力支持 mask，但 Encoder 的 `forward` 和 Decoder 的交叉注意力调用尚未暴露源序列 mask。
 - 尚未加入 dropout。
