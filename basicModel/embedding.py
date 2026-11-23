@@ -19,11 +19,13 @@ class PositionEncoding(nn.Module):
         position = torch.arange(max_len).unsqueeze(1) # [max_len, 1]
         # 2i: sin(pos / 10000^(2i/d))
         # 2i+1: cos(pos / 10000^(2i/d))
-        div_term = torch.pow(torch.arange(0, 2, dim) / dim, 10000)
+        div_term = torch.pow(10000, torch.arange(0, dim, 2) / dim)
 
-        self.register_buffer("pos_emb", torch.ones(max_len, dim))
+        self.register_buffer("pos_emb", torch.ones(max_len, dim)) # max_len, dim
         self.pos_emb[:, 0::2] = torch.sin(position / div_term)
         self.pos_emb[:, 1::2] = torch.cos(position / div_term)
+        self.pos_emb = self.pos_emb.unsqueeze(0)
 
     def forward(self, x):
-        return x + self.pos_emb
+        # x: B, len, dim
+        return x + self.pos_emb[:, :x.shape[1]]

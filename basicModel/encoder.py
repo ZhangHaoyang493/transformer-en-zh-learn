@@ -1,15 +1,15 @@
 import torch
 import torch.nn as nn
 
-from attention import MultiHeadAttention
-from layernorm import LayerNormLayer
-from feedforward import FeedForwardNetwork
+from basicModel.attention import MultiHeadAttention
+from basicModel.layernorm import LayerNormLayer
+from basicModel.feedforward import FeedForwardNetwork
 
 class EncoderTransformerBlock(nn.Module):
     def __init__(self, dim, head_n=4, dila_w=4):
         super(EncoderTransformerBlock, self).__init__()
 
-        self.feedforward = FeedForwardNetwork(dim, dim*dila_w)
+        self.feedforward = FeedForwardNetwork(dim, int(dim*dila_w))
         self.multiHeadAttn = MultiHeadAttention(dim, head_n=head_n)
         self.layernorm = LayerNormLayer(dim)
         self.layernorm2 = LayerNormLayer(dim)

@@ -2,16 +2,16 @@ import torch
 import torch.nn as nn
 
 def attention(query, key, value, mask=None):
-    # query: B len dim
-    # key: B len dim
-    # value: B len dim
+    # query: B len1 dim
+    # key: B len2 dim
+    # value: B len2 dim
     d_k = query.shape[-1]
-    # attn_weight: B len len
+    # attn_weight: B len1 len2
     attn_weight = torch.matmul(query, torch.transpose(key, -1, -2)) / (d_k ** 0.5)
     if mask is not None:
         attn_weight = attn_weight.masked_fill(~mask, float('-inf'))
     attn_weight = torch.softmax(attn_weight, -1)
-    return torch.matmul(attn_weight, value)
+    return torch.matmul(attn_weight, value) # B, len1, dim
 
 
 class MultiHeadAttention(nn.Module):
@@ -32,15 +32,17 @@ class MultiHeadAttention(nn.Module):
     def forward(self, q, k, v, mask=None):
         batch_size = q.shape[0]
 
-        q = self.q_transform_layer(q)
-        k = self.k_transform_layer(k)
-        v = self.v_transform_layer(v)
+        q = self.q_transform_layer(q) # B, len1, dim
+        k = self.k_transform_layer(k) # B, len2, dim
+        v = self.v_transform_layer(v) # B, len2, dim
+
 
         head_dim = self.dim // self.head_n
 
         q = q.view(batch_size, -1, self.head_n, head_dim)
         k = k.view(batch_size, -1, self.head_n, head_dim)
         v = v.view(batch_size, -1, self.head_n, head_dim)
+
 
         q = torch.transpose(q, 1, 2)
         k = torch.transpose(k, 1, 2)

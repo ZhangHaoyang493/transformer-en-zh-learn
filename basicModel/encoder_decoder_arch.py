@@ -1,10 +1,10 @@
 import torch
 import torch.nn as nn
 
-from encoder import EncoderTransformerBlock
-from decoder import DecoderTransformerBlock
+from basicModel.encoder import EncoderTransformerBlock
+from basicModel.decoder import DecoderTransformerBlock
 
-from embedding import PositionEncoding, EmbeddingLayer
+from basicModel.embedding import PositionEncoding, EmbeddingLayer
 
 class EncoderDecoderArch(nn.Module):
     def __init__(self, dim, src_vocab, tar_vocab, enc_n=4, dec_n=4, head_n=4, dila_w=4, max_len=512):
@@ -17,7 +17,7 @@ class EncoderDecoderArch(nn.Module):
         )
         self.decoderList = nn.ModuleList(
             [
-                DecoderTransformerBlock(dim, head_n, dila_w)
+                DecoderTransformerBlock(dim, head_n, dila_w) for _ in range(dec_n)
             ]
         )
 
@@ -39,9 +39,14 @@ class EncoderDecoderArch(nn.Module):
             x = m(x, x_enc, tar_mask, src_mask)
         return x
 
-    def forward(self, x, src_mask, tgt_mask):
-        # 输入->embedding
-        pass
+    def out_to_prob(self, x):
+        return self.out_linear(x)
+
+    def forward(self, x_enc, x_dec, src_mask, tgt_mask):
+        enc_res = self.encode(x_enc, src_mask)
+        dec_res = self.decode(x_dec, enc_res, tgt_mask, src_mask)
+        out = self.out_linear(dec_res) # B, len, tar_vocab
+        return out
 
 
 if __name__ == '__main__':
@@ -49,7 +54,7 @@ if __name__ == '__main__':
     input = torch.LongTensor([1, 2, 9, 20, 12, 42, 132, 423, 891, 213]).cuda(0).unsqueeze(0) # 1, 10
     print('input dim: ', input.shape)
 
-    src_mask = torch.ones(10, 10).cuda(0) == 1
+    src_mask = torch.ones(1, 1, 1, 10).cuda(0) == 1
 
 
     res = torch.zeros(1, 1).cuda(0).type_as(input.data)
@@ -60,9 +65,12 @@ if __name__ == '__main__':
         out = model.decode(
             res,
             enc_fea,
-            torch.tril(torch.ones(res.shape[1], res.shape[1]), diagonal=1).cuda(0) == 1,
+            torch.tril(torch.ones(res.shape[1], res.shape[1]), diagonal=0).cuda(0) == 1,
             src_mask
         )
 
-        _, next_word_idx = torch.max(out[:, -1])
-        print(next_word_idx)
+        out = model.out_linear(out)
+        _, next_word_idx = torch.max(out[:, -1], dim=-1)
+        print(res.shape, next_word_idx.unsqueeze(0).shape)
+        res = torch.concat([res, next_word_idx.unsqueeze(0)], dim=-1)
+        print(res)
